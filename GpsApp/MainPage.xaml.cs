@@ -12,10 +12,46 @@ public partial class MainPage : ContentPage
 
 	private async void OnCounterClicked(object sender, EventArgs e)
 	{
-        LocationTxt.Text = await GetCachedLocation();
+        //LocationTxt.Text = await GetCachedLocation();
+        LocationTxt.Text = await GetCurrentLocation();  
 
-		SemanticScreenReader.Announce(LocationTxt.Text);
+        SemanticScreenReader.Announce(LocationTxt.Text);
 	}
+
+    private CancellationTokenSource _cancelTokenSource;
+    private bool _isCheckingLocation;
+
+    public async Task<string> GetCurrentLocation() {
+        try {
+            _isCheckingLocation = true;
+
+            GeolocationRequest request = new(GeolocationAccuracy.High, TimeSpan.FromSeconds(10));
+
+            _cancelTokenSource = new CancellationTokenSource();
+
+            Location location = await Geolocation.Default.GetLocationAsync(request, _cancelTokenSource.Token);
+
+            if (location != null)
+                return $"Latitude: {location.Latitude}, Longitude: {location.Longitude}, Altitude: {location.Altitude}";
+        }
+        // Catch one of the following exceptions:
+        //   FeatureNotSupportedException
+        //   FeatureNotEnabledException
+        //   PermissionException
+        catch (Exception ex) {
+            // Unable to get location
+            return ex.Message;
+        } finally {
+            _isCheckingLocation = false;
+        }
+        return "None";
+    }
+
+    public void CancelRequest() {
+        if (_isCheckingLocation && _cancelTokenSource != null && _cancelTokenSource.IsCancellationRequested == false)
+            _cancelTokenSource.Cancel();
+    }
+
 
     private async Task<string> GetCachedLocation() {
         try {
